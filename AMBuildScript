@@ -147,17 +147,17 @@ class SteamWorksConfig(object):
         '-pipe',
         '-fno-strict-aliasing',
         '-Wall',
-        '-Werror',
+        #'-Werror',
         '-Wno-unused',
         '-Wno-switch',
         '-Wno-format',
         '-Wno-format-security',
         '-Wno-array-bounds',
         '-msse',
-        '-m32',
+        '-fPIC',
       ]
       cxx.cxxflags += [
-          '-std=c++11',
+          '-std=c++17',
       ]
 
       have_gcc = cxx.vendor == 'gcc'
@@ -179,7 +179,6 @@ class SteamWorksConfig(object):
           cxx.cxxflags += ['-Wno-deprecated']
         cxx.cflags += ['-Wno-sometimes-uninitialized']
 
-      cxx.linkflags += ['-m32']
       cxx.cxxflags += [
         '-fno-exceptions',
         '-fno-threadsafe-statics',
@@ -269,12 +268,14 @@ class SteamWorksConfig(object):
       cxx.defines += ['WIN32', '_WINDOWS']
 	  
   def ConfigureForExtension(self, context, compiler):
-    compiler.cxxincludes += [
+    compiler.includes += [
       os.path.join(context.currentSourcePath),
       os.path.join(context.currentSourcePath, 'sdk'),
       os.path.join(self.sm_root, 'public'),
       os.path.join(self.sm_root, 'public', 'extensions'),
-      os.path.join(self.sm_root, 'public', 'sourcepawn'),
+      os.path.join(self.sm_root, 'sourcepawn', 'include'),
+      os.path.join(self.sm_root, 'public', 'amtl'),
+      os.path.join(self.sm_root, 'public', 'amtl', 'amtl'),
     ]
     return compiler
 	

@@ -16,8 +16,15 @@ project.sources += [
   'swhttprequest.cpp',
   'swgchooks.cpp',
   'sdk/smsdk_ext.cpp',
-  'CDetour/detours.cpp',
-  'asm/asm.c'
+
+   os.path.join(SteamWorks.sm_root, 'public', 'CDetour', 'detours.cpp'),
+   os.path.join(SteamWorks.sm_root, 'public', 'asm', 'asm.c'),
+   os.path.join(SteamWorks.sm_root, 'public', 'libudis86', 'decode.c'),
+   os.path.join(SteamWorks.sm_root, 'public', 'libudis86', 'itab.c'),
+   os.path.join(SteamWorks.sm_root, 'public', 'libudis86', 'syn-att.c'),
+   os.path.join(SteamWorks.sm_root, 'public', 'libudis86', 'syn-intel.c'),
+   os.path.join(SteamWorks.sm_root, 'public', 'libudis86', 'syn.c'),
+   os.path.join(SteamWorks.sm_root, 'public', 'libudis86', 'udis86.c'),
 ]
 
 for sdk_name in SteamWorks.sdks:
@@ -29,10 +36,16 @@ for sdk_name in SteamWorks.sdks:
   binary.compiler.cxxincludes += [os.path.join(SteamWorks.steamworks_root, 'public', 'steam'), os.path.join(sdk.path, 'public', 'steam')];
   
   if binary.compiler.target.platform == 'linux':
-    binary.compiler.postlink += os.path.join(SteamWorks.steamworks_root, 'redistributable_bin', 'linux32', 'libsteam_api.so'),;
+    if binary.compiler.target.arch == 'x86_64':
+      binary.compiler.postlink += os.path.join(SteamWorks.steamworks_root, 'redistributable_bin', 'linux64', 'libsteam_api.so'),;  
+    else:
+      binary.compiler.postlink += os.path.join(SteamWorks.steamworks_root, 'redistributable_bin', 'linux32', 'libsteam_api.so'),;
 	
   if binary.compiler.target.platform == 'windows':
-    binary.compiler.postlink += os.path.join(SteamWorks.steamworks_root, 'redistributable_bin', 'steam_api.lib'),;
+    if binary.compiler.target.arch == 'x86_64':
+      binary.compiler.postlink += os.path.join(SteamWorks.steamworks_root, 'redistributable_bin', 'win64', 'steam_api64.lib'),;
+    else:
+      binary.compiler.postlink += os.path.join(SteamWorks.steamworks_root, 'redistributable_bin', 'steam_api.lib'),;
 	
   if binary.compiler.target.platform == 'mac':
     binary.compiler.postlink += os.path.join(SteamWorks.steamworks_root, 'redistributable_bin', 'osx', 'libsteam_api.dylib'),;

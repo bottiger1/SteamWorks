@@ -1,0 +1,4 @@
+#!/bin/bash
+rm -rf package .ambuild2 Extension Package
+cd ..
+rm -rf hl2sdk-manifests exception 

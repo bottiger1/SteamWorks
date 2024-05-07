@@ -26,7 +26,7 @@ class SteamWorksHTTP :
 {
 	public:
 		SteamWorksHTTP();
-		~SteamWorksHTTP();
+		virtual ~SteamWorksHTTP();
 
 	public:
 		void OnHandleDestroy(HandleType_t type, void *object);

@@ -17,6 +17,8 @@
 */
 
 #include "swgsdetours.h"
+#include "CDetour/detours.h"
+#define DETOUR_CREATE_STATIC_FIXED(name, address) CDetourManager::CreateDetour(GET_STATIC_CALLBACK(name), GET_STATIC_TRAMPOLINE(name), address);
 
 DETOUR_DECL_STATIC0(SteamAPIShutdown, void)
 {

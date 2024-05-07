@@ -199,7 +199,7 @@ static cell_t sm_ForceHeartbeat(IPluginContext *pContext, const cell_t *params)
 		return 0;
 	}
 
-	pServer->ForceHeartbeat();
+	//pServer->ForceHeartbeat();
 	return 1;
 }
 
