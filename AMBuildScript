@@ -157,7 +157,7 @@ class SteamWorksConfig(object):
         '-fPIC',
       ]
       cxx.cxxflags += [
-          '-std=c++17',
+          '-std=c++20',
       ]
 
       have_gcc = cxx.vendor == 'gcc'
@@ -271,6 +271,8 @@ class SteamWorksConfig(object):
     compiler.includes += [
       os.path.join(context.currentSourcePath),
       os.path.join(context.currentSourcePath, 'sdk'),
+      os.path.join(context.currentSourcePath, 'CDetour'),
+
       os.path.join(self.sm_root, 'public'),
       os.path.join(self.sm_root, 'public', 'extensions'),
       os.path.join(self.sm_root, 'sourcepawn', 'include'),

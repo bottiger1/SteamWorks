@@ -17,6 +17,8 @@
 */
 
 #include "swgameserver.h"
+#include <dlfcn.h>
+#include <link.h>
 
 static void GetGameSpecificConfigInterface(const char *pName, const char *&pVersion)
 {
@@ -62,7 +64,9 @@ void SteamWorksGameServer::Reset(void)
 ISteamClient *SteamWorksGameServer::GetSteamClient(void)
 {
 	if (g_pSteamClientGameServer != NULL)
+	{
 		return g_pSteamClientGameServer;
+	}
 
 	/*
 		The following is assumed from an unreleased version of the SteamWorks SDK, first seen (and reversed) in CS:GO.
@@ -105,10 +109,14 @@ ISteamClient *SteamWorksGameServer::GetSteamClient(void)
 		}
 
 		if (pGSInternalCreateAddress != NULL)
+		{
 			this->m_pClient = static_cast<ISteamClient *>((*pGSInternalCreateAddress)(STEAMCLIENT_INTERFACE_VERSION));
+		}
 		
 		if (this->m_pClient == NULL && pInternalCreateAddress != NULL)
+		{
 			this->m_pClient = static_cast<ISteamClient *>((*pInternalCreateAddress)(STEAMCLIENT_INTERFACE_VERSION));
+		}
 	}
 
 	return this->m_pClient;
@@ -123,7 +131,7 @@ ISteamGameServer *SteamWorksGameServer::GetGameServer(void)
 		GetUserAndPipe(hSteamUser, hSteamPipe);
 		
 		const char *pVersion = STEAMGAMESERVER_INTERFACE_VERSION;
-		GetGameSpecificConfigInterface("SteamGameServerInterfaceVersion", pVersion);
+		//GetGameSpecificConfigInterface("SteamGameServerInterfaceVersion", pVersion);
 		this->m_pGameServer = this->GetSteamClient()->GetISteamGameServer(hSteamUser, hSteamPipe, pVersion);
 	}
 	
@@ -230,14 +238,36 @@ void SteamWorksGameServer::GetUserAndPipe(HSteamUser &hSteamUser, HSteamPipe &hS
 	hSteamPipe = SteamGameServer_GetHSteamPipe();
 }
 
+std::string get_loaded_library_path(const std::string& libname) {
+    struct search_data_t {
+        const std::string& name;
+        std::string path;
+    } search_data { libname, "" };
+
+    auto callback = [](struct dl_phdr_info *info, size_t size, void *data) -> int {
+        search_data_t *search_data = static_cast<search_data_t *>(data);
+        if (strstr(info->dlpi_name, search_data->name.c_str())) {
+            search_data->path = info->dlpi_name;
+            return 1; // Stop iteration
+        }
+        return 0; // Continue iteration
+    };
+
+    dl_iterate_phdr(callback, &search_data);
+
+    return search_data.path;
+}
+
 const char *SteamWorksGameServer::GetLibraryPath(void)
 {
 	static const char *pLibSteamPath = NULL;
+	static std::string libSteamPath;
 
 	if (pLibSteamPath == NULL)
 	{
 #if defined POSIX
-		pLibSteamPath = "./bin/libsteam_api.so";
+		libSteamPath = get_loaded_library_path("libsteam_api.so");
+		pLibSteamPath = libSteamPath.c_str();
 #elif defined WIN32_LEAN_AND_MEAN
 		pLibSteamPath = "./bin/steam_api.dll"; /* Naming from SteamTools. */
 #endif

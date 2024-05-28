@@ -1,6 +1,7 @@
 #!/bin/bash
 
 ln -s ../sdk/hl2sdk-manifests ../
+ln -s ../../sdk/CDetour ../Extension
 
 python3 ../configure.py -s sdk2013 \
         --hl2sdk-root `realpath ../../sdk` \
