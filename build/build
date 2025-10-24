@@ -11,6 +11,7 @@ cd "$_CURRENT_DIR"
 echo ">> Creating legacy symlinks..."
 
 ln -s ../assets/sourcemod-central/public/CDetour ../Extension
+ln -s ../assets/sourcemod-central/public/safetyhook/include ../Extension
 ln -s ../assets/sourcemod-central/public/safetyhook/zydis ../Extension
 ln -s ../assets/sourcemod-central/public/safetyhook/amalgamated-dist ../Extension
 
