@@ -17,7 +17,8 @@ WinLinux = ['windows', 'linux']
 WinLinuxMac = ['windows', 'linux', 'mac']
 
 PossibleSDKs = {
-  'sdk2013': SDK('HL2SDK2013', '2.sdk2013', '9', 'SDK2013', WinLinuxMac, 'sdk2013'),
+  'tf2':     SDK('HL2SDKTF2',  '2.tf2',     '12', 'TF2',     WinLinux,    'tf2'),
+  'sdk2013': SDK('HL2SDK2013', '2.sdk2013', '9',  'SDK2013', WinLinuxMac, 'sdk2013'),
 }
 
 def ResolveEnvPath(env, folder):
@@ -49,12 +50,24 @@ class SteamWorksConfig(object):
     self.sm_root = None
     self.steamworks_root = None
     self.extensions = []
+    self.all_targets = []
 
-    # Note: only one architecture supported per build right now.
-    if builder.options.target:
-        builder.cxx = builder.DetectCxx(target_arch = builder.options.target)
+    # Build for one or more architectures (sample-extension pattern).
+    if builder.options.targets:
+        target_archs = builder.options.targets.split(',')
     else:
-        builder.cxx = builder.DetectCxx(target_arch = 'x86')
+        target_archs = ['x86']
+
+    for arch in target_archs:
+        try:
+            cxx = builder.DetectCxx(target_arch = arch)
+            self.all_targets.append(cxx)
+        except Exception as e:
+            raise Exception('Failed to detect compiler for {0}: {1}'.format(arch, e))
+
+    # Back-compat: some downstream code references builder.cxx as the "primary" target.
+    builder.cxx = self.all_targets[0]
+    builder.targets = self.all_targets
 
   @property
   def tag(self):
@@ -130,8 +143,9 @@ class SteamWorksConfig(object):
   def configure(self):
     builder.AddConfigureFile('pushbuild.txt')
 
-    # Only one compiler to configure.
-    self.configure_cxx(builder.cxx)
+    # Configure each target compiler.
+    for cxx in self.all_targets:
+      self.configure_cxx(cxx)
 
   def configure_cxx(self, cxx):
     if cxx.like('gcc'):
@@ -314,8 +328,9 @@ class SteamWorksConfig(object):
     self.ConfigureForExtension(context, context.cxx)
     return project
 
-  def HL2Config(self, project, cxx, name, sdk):
-    binary = project.Configure(cxx, name, '{0} - {1}'.format(self.tag, sdk.name))
+  def HL2Config(self, project, context, cxx, name, sdk):
+    binary = project.Configure(cxx, name, '{0} - {1} {2}'.format(self.tag, sdk.name, cxx.target.arch))
+    self.ConfigureForExtension(context, binary.compiler)
     return self.ConfigureForHL2(binary, sdk)
 
 SteamWorks = SteamWorksConfig()

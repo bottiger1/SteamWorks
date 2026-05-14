@@ -34,5 +34,6 @@ run.options.add_argument('--enable-optimize', action='store_const', const='1', d
 run.options.add_argument('-s', '--sdks', default='all', dest='sdks',
                        help='Build against specified SDKs; valid args are "all", "present", or '
                             'comma-delimited list of engine names')
-run.options.add_argument('--target', default=None, help='Override the default build target')
+run.options.add_argument('--targets', type=str, dest='targets', default=None,
+                       help='Override the target architectures (comma-separated, e.g. x86,x86_64)')
 run.Configure()

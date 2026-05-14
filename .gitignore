@@ -26,3 +26,11 @@
 [Rr]elease - */
 [Dd]ebug/
 [Rr]elease/
+
+# AMBuild2 build outputs
+build/*
+!build/build
+!build/clean
+
+# CDetour symlink created by build/build
+Extension/CDetour
