@@ -20,7 +20,6 @@
 #include "isteamgameserver.h"
 #include "steam_gameserver.h"
 #include "smsdk_ext.h"
-#include "sourcehook.h"
 
 class SteamWorksGSHooks
 {
@@ -33,15 +32,21 @@ class SteamWorksGSHooks
 		void RemoveHooks(ISteamGameServer *pGameServer, bool destroyed = false);
 	
 	public:
-		bool WasRestartRequested(void);
-		void LogOnAnonymous(void);
-		EBeginAuthSessionResult BeginAuthSession(const void*, int, CSteamID);
+		KHook::Return<bool> WasRestartRequested(ISteamGameServer*);
+		KHook::Return<void> LogOnAnonymous(ISteamGameServer*);
+		KHook::Return<EBeginAuthSessionResult> BeginAuthSession(ISteamGameServer*, const void*, int, CSteamID);
 		
 	private:
 		IForward *pFORR; /* On Restart Requested. */
 		IForward *pFOTR; /* On Token Requested. */
 		IForward *pOBAS; /* On Begin Auth Session. */
 		unsigned char uHooked;
+
+	protected:
+		KHook::Virtual<ISteamGameServer, bool> m_WasRestartRequested;
+		KHook::Virtual<ISteamGameServer, void> m_LogOnAnonymous;
+		KHook::Virtual<ISteamGameServer, EBeginAuthSessionResult, const void*, int, CSteamID> m_BeginAuthSession;
+
 };
 
 void OurGameFrameHook(bool simulating);

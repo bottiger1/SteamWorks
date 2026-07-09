@@ -16,10 +16,6 @@ project.sources += [
   'swhttprequest.cpp',
   'swgchooks.cpp',
   'sdk/smsdk_ext.cpp',
-
-  'CDetour/Zydis.c',
-  'CDetour/safetyhook.cpp',
-  'CDetour/detours.cpp',
 ]
 
 for sdk_name in SteamWorks.sdks:

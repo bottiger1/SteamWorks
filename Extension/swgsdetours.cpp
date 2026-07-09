@@ -17,10 +17,8 @@
 */
 
 #include "swgsdetours.h"
-#include "CDetour/detours.h"
-#define DETOUR_CREATE_STATIC_FIXED(name, address) CDetourManager::CreateDetour(GET_STATIC_CALLBACK(name), GET_STATIC_TRAMPOLINE(name), address);
 
-DETOUR_DECL_STATIC0(SteamAPIShutdown, void)
+KHook::Return<void> SteamAPIShutdown()
 {
 	if (g_SteamWorks.pSWGameServer != NULL)
 	{
@@ -32,20 +30,22 @@ DETOUR_DECL_STATIC0(SteamAPIShutdown, void)
 		g_SteamWorks.pSWGameServer->Reset();
 	}
 
-	DETOUR_STATIC_CALL(SteamAPIShutdown)(); /* We're not a monster. */
+	KHook::GetCurrentValuePtr();
+	return { KHook::Action::Ignore };
 }
+KHook::Function<void> g_SteamAPIShutdownDetour(SteamAPIShutdown, nullptr);
 
-DETOUR_DECL_STATIC6(SteamGameServer_InitSafeDetour, bool, uint32, unIP, uint16, usSteamPort, uint16, usGamePort, uint16, usQueryPort, EServerMode, eServerMode, const char *, pchVersionString)
+KHook::Return<bool> SteamGameServer_InitSafe(uint32 unIP, uint16 usSteamPort, uint16 usGamePort, uint16 usQueryPort, EServerMode eServerMode, const char *pchVersionString)
 {
-	bool bRet = DETOUR_STATIC_CALL(SteamGameServer_InitSafeDetour)(unIP, usSteamPort, usGamePort, usQueryPort, eServerMode, pchVersionString); /* Call to init game interfaces. */
-	
+	bool bRet = *(bool*)KHook::GetCurrentValuePtr();
 	if (g_SteamWorks.pSWGameServer != NULL && g_SteamWorks.pGSHooks != NULL)
 	{
 		g_SteamWorks.pGSHooks->AddHooks(g_SteamWorks.pSWGameServer->GetGameServer());
 	}
 	
-	return bRet;
+	return { KHook::Action::Ignore, bRet };
 }
+KHook::Function<bool, uint32, uint16, uint16, uint16, EServerMode, const char*> g_SteamGameServer_InitSafeDetour(SteamGameServer_InitSafe, nullptr);
 
 SteamWorksGSDetours::SteamWorksGSDetours()
 {
@@ -84,11 +84,9 @@ SteamWorksGSDetours::SteamWorksGSDetours()
 		pLibrary->CloseLibrary();
 	}
 
-	CDetourManager::Init(g_pSM->GetScriptingEngine(), pConfig);
 	if (pSteamShutdownAddress != NULL)
 	{
-		this->m_pShutdownDetour = DETOUR_CREATE_STATIC_FIXED(SteamAPIShutdown, pSteamShutdownAddress);
-		this->m_pShutdownDetour->EnableDetour();
+		g_SteamAPIShutdownDetour.Configure(reinterpret_cast<void(*)()>(pSteamShutdownAddress));
 	}
 	else
 	{
@@ -97,8 +95,7 @@ SteamWorksGSDetours::SteamWorksGSDetours()
 
 	if (pSteamSafeInitAddress != NULL)
 	{
-		this->m_pSafeInitDetour = DETOUR_CREATE_STATIC_FIXED(SteamGameServer_InitSafeDetour, pSteamSafeInitAddress);
-		this->m_pSafeInitDetour->EnableDetour();
+		g_SteamGameServer_InitSafeDetour.Configure(reinterpret_cast<bool (*)(uint32, uint16, uint16, uint16, EServerMode, const char *)>(pSteamSafeInitAddress));
 	}
 	else
 	{
@@ -110,13 +107,13 @@ SteamWorksGSDetours::~SteamWorksGSDetours()
 {
 	if (this->m_pShutdownDetour != NULL)
 	{
-		this->m_pShutdownDetour->Destroy();
+		g_SteamAPIShutdownDetour.~Function();
 		this->m_pShutdownDetour = NULL;
 	}
 	
 	if (this->m_pSafeInitDetour != NULL)
 	{
-		this->m_pSafeInitDetour->Destroy();
+		g_SteamGameServer_InitSafeDetour.~Function();
 		this->m_pSafeInitDetour = NULL;
 	}
 }
