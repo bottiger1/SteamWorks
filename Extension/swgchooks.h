@@ -21,7 +21,6 @@
 #include "isteamgamecoordinator.h"
 
 #include "smsdk_ext.h"
-#include "sourcehook.h"
 
 #ifdef _WIN32
 #undef SendMessage
@@ -38,15 +37,20 @@ class SteamWorksGCHooks
 		void RemoveHooks(ISteamGameCoordinator *pGC, bool destroyed = false);
 
 	public:
-		EGCResults SendMessage(uint32 unMsgType, const void *pubData, uint32 cubData);
-		bool IsMessageAvailable(uint32_t *pcubMsgSize);
-		EGCResults RetrieveMessage(uint32 *punMsgType, void *pubDest, uint32 cubDest, uint32 *pcubMsgSize);
+		KHook::Return<EGCResults> SendMessage(ISteamGameCoordinator*, uint32 unMsgType, const void *pubData, uint32 cubData);
+		KHook::Return<bool> IsMessageAvailable(ISteamGameCoordinator*, uint32_t *pcubMsgSize);
+		KHook::Return<EGCResults> RetrieveMessage(ISteamGameCoordinator*, uint32 *punMsgType, void *pubDest, uint32 cubDest, uint32 *pcubMsgSize);
 
 	private:
 		IForward *pGCSendMsg;
 		IForward *pGCMsgAvail;
 		IForward *pGCRetMsg;
 		unsigned char uHooked;
+
+	protected:
+		KHook::Virtual<ISteamGameCoordinator, EGCResults, uint32, const void*, uint32>  m_SendMessage;
+		KHook::Virtual<ISteamGameCoordinator, bool, uint32_t*> m_IsMessageAvailable;
+		KHook::Virtual<ISteamGameCoordinator, EGCResults, uint32*, void*, uint32, uint32*> m_RetrieveMessage;
 };
 
 void OurGCGameFrameHook(bool simulating);

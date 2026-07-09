@@ -26,16 +26,12 @@ enum
 	eHooked
 };
 
-SH_DECL_HOOK0(ISteamGameServer, WasRestartRequested, SH_NOATTRIB, 0, bool); /* From SteamTools. */
-SH_DECL_HOOK3(ISteamGameServer, BeginAuthSession, SH_NOATTRIB, 0, EBeginAuthSessionResult, const void *, int, CSteamID); /* From SteamTools. */
-SH_DECL_HOOK0_void(ISteamGameServer, LogOnAnonymous, SH_NOATTRIB, 0); /* From VoiDeD's MM:S plugin. */
-
 static ISteamGameServer *GetGameServerPointer()
 {
 	return g_SteamWorks.pSWGameServer->GetGameServer();
 }
 
-SteamWorksGSHooks::SteamWorksGSHooks()
+SteamWorksGSHooks::SteamWorksGSHooks() : m_WasRestartRequested(&ISteamGameServer::WasRestartRequested, this, &SteamWorksGSHooks::WasRestartRequested, nullptr), m_LogOnAnonymous(&ISteamGameServer::LogOnAnonymous, this, &SteamWorksGSHooks::LogOnAnonymous, nullptr), m_BeginAuthSession(&ISteamGameServer::BeginAuthSession, this, &SteamWorksGSHooks::BeginAuthSession, nullptr)
 {
 	this->uHooked = eHooking;
 	this->pFORR = forwards->CreateForward("SteamWorks_RestartRequested", ET_Hook, 0, NULL);
@@ -62,19 +58,18 @@ SteamWorksGSHooks::~SteamWorksGSHooks()
 	forwards->ReleaseForward(this->pOBAS);
 }
 
-void SteamWorksGSHooks::LogOnAnonymous(void)
+KHook::Return<void> SteamWorksGSHooks::LogOnAnonymous(ISteamGameServer *pGameServer)
 {
-	ISteamGameServer *pGameServer = GetGameServerPointer();
 	if (pGameServer == NULL)
 	{
 		/* Go away, this wrecks us if we want to use it later. Also; impossible. */
-		RETURN_META(MRES_SUPERCEDE);
+		return { KHook::Action::Supersede };
 	}
 
 	if (this->pFOTR->GetFunctionCount() == 0)
 	{
 		/* No plugin was loaded to handle this. Anon away; we can't break them. */
-		RETURN_META(MRES_IGNORED);
+		return { KHook::Action::Ignore };
 	}
 
 	char pToken[256];
@@ -84,10 +79,10 @@ void SteamWorksGSHooks::LogOnAnonymous(void)
 	this->pFOTR->Execute(NULL);
 
 	pGameServer->LogOn(pToken);
-	RETURN_META(MRES_SUPERCEDE);
+	return { KHook::Action::Supersede };
 }
 
-EBeginAuthSessionResult SteamWorksGSHooks::BeginAuthSession(const void *pAuthTicket, int cbAuthTicket, CSteamID steamID)
+KHook::Return<EBeginAuthSessionResult> SteamWorksGSHooks::BeginAuthSession(ISteamGameServer *pSteamGameServer, const void *pAuthTicket, int cbAuthTicket, CSteamID steamID)
 {
 	if (this->pOBAS->GetFunctionCount() != 0)
 	{
@@ -99,12 +94,12 @@ EBeginAuthSessionResult SteamWorksGSHooks::BeginAuthSession(const void *pAuthTic
 		this->pOBAS->Execute(NULL);
 	}
 
-	RETURN_META_VALUE(MRES_IGNORED, k_EBeginAuthSessionResultOK);
+	return { KHook::Action::Ignore, k_EBeginAuthSessionResultOK };
 }
 
-bool SteamWorksGSHooks::WasRestartRequested(void) /* Mimic SteamTools. */
+KHook::Return<bool> SteamWorksGSHooks::WasRestartRequested(ISteamGameServer *pSteamGameServer) /* Mimic SteamTools. */
 {
-	bool bWasRestartRequested = SH_CALL(GetGameServerPointer(), &ISteamGameServer::WasRestartRequested)();
+	bool bWasRestartRequested = m_WasRestartRequested.CallOriginal(pSteamGameServer);
 	if (bWasRestartRequested && this->pFORR->GetFunctionCount() != 0)
 	{
 		cell_t Result = Pl_Continue;
@@ -113,7 +108,7 @@ bool SteamWorksGSHooks::WasRestartRequested(void) /* Mimic SteamTools. */
 	}
 
 	/* With how this function works, all following will be given poisoned values from SH_Call. */
-	RETURN_META_VALUE(MRES_SUPERCEDE, bWasRestartRequested); 
+	return { KHook::Action::Supersede, bWasRestartRequested };
 }
 
 void SteamWorksGSHooks::AddHooks(ISteamGameServer *pGameServer)
@@ -124,9 +119,9 @@ void SteamWorksGSHooks::AddHooks(ISteamGameServer *pGameServer)
 	}
 
 	this->uHooked = eHooked;
-	SH_ADD_HOOK(ISteamGameServer, WasRestartRequested, pGameServer, SH_MEMBER(this, &SteamWorksGSHooks::WasRestartRequested), false);
-	SH_ADD_HOOK(ISteamGameServer, LogOnAnonymous, pGameServer, SH_MEMBER(this, &SteamWorksGSHooks::LogOnAnonymous), false);
-	SH_ADD_HOOK(ISteamGameServer, BeginAuthSession, pGameServer, SH_MEMBER(this, &SteamWorksGSHooks::BeginAuthSession), false);
+	m_WasRestartRequested.Add(pGameServer);
+	m_LogOnAnonymous.Add(pGameServer);
+	m_BeginAuthSession.Add(pGameServer);
 }
 
 void SteamWorksGSHooks::RemoveHooks(ISteamGameServer *pGameServer, bool destroyed)
@@ -136,9 +131,9 @@ void SteamWorksGSHooks::RemoveHooks(ISteamGameServer *pGameServer, bool destroye
 		return;
 	}
 
-	SH_REMOVE_HOOK(ISteamGameServer, WasRestartRequested, pGameServer, SH_MEMBER(this, &SteamWorksGSHooks::WasRestartRequested), false);
-	SH_REMOVE_HOOK(ISteamGameServer, LogOnAnonymous, pGameServer, SH_MEMBER(this, &SteamWorksGSHooks::LogOnAnonymous), false);
-	SH_REMOVE_HOOK(ISteamGameServer, BeginAuthSession, pGameServer, SH_MEMBER(this, &SteamWorksGSHooks::BeginAuthSession), false);
+	m_WasRestartRequested.Remove(pGameServer);
+	m_LogOnAnonymous.Remove(pGameServer);
+	m_BeginAuthSession.Remove(pGameServer);
 	if (destroyed)
 	{
 		this->uHooked = eUnhooked;

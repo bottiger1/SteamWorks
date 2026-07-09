@@ -25,16 +25,12 @@ enum
 	eHooked
 };
 
-SH_DECL_HOOK3(ISteamGameCoordinator, SendMessage, SH_NOATTRIB, 0, EGCResults, uint32, const void *, uint32);
-SH_DECL_HOOK1(ISteamGameCoordinator, IsMessageAvailable, SH_NOATTRIB, 0, bool, uint32 *);
-SH_DECL_HOOK4(ISteamGameCoordinator, RetrieveMessage, SH_NOATTRIB, 0, EGCResults, uint32 *, void *, uint32, uint32 *);
-
 static ISteamGameCoordinator *GetSteamGCPointer()
 {
 	return g_SteamWorks.pSWGameServer->GetGameCoordinator();
 }
 
-SteamWorksGCHooks::SteamWorksGCHooks()
+SteamWorksGCHooks::SteamWorksGCHooks() : m_SendMessage(&ISteamGameCoordinator::SendMessage, this, &SteamWorksGCHooks::SendMessage, nullptr), m_IsMessageAvailable(&ISteamGameCoordinator::IsMessageAvailable, this, nullptr, &SteamWorksGCHooks::IsMessageAvailable), m_RetrieveMessage(&ISteamGameCoordinator::RetrieveMessage, this, &SteamWorksGCHooks::RetrieveMessage, nullptr)
 {
 	this->uHooked = eHooking;
 	this->pGCSendMsg = forwards->CreateForward("SteamWorks_GCSendMessage", ET_Event, 3, NULL, Param_Cell, Param_String, Param_Cell);
@@ -61,11 +57,11 @@ SteamWorksGCHooks::~SteamWorksGCHooks()
 	forwards->ReleaseForward(this->pGCRetMsg);
 }
 
-EGCResults SteamWorksGCHooks::SendMessage(uint32 unMsgType, const void *pubData, uint32 cubData)
+KHook::Return<EGCResults> SteamWorksGCHooks::SendMessage(ISteamGameCoordinator* pGC, uint32 unMsgType, const void *pubData, uint32 cubData)
 {
 	if (this->pGCSendMsg->GetFunctionCount() == 0)
 	{
-		RETURN_META_VALUE(MRES_IGNORED, k_EGCResultOK);
+		return { KHook::Action::Ignore, k_EGCResultOK };
 	}
 
 	cell_t Result = k_EGCResultOK;
@@ -81,48 +77,48 @@ EGCResults SteamWorksGCHooks::SendMessage(uint32 unMsgType, const void *pubData,
 			Result = k_EGCResultOK;
 		}
 
-		RETURN_META_VALUE(MRES_SUPERCEDE, static_cast<EGCResults>(Result));
+		return { KHook::Action::Supersede, static_cast<EGCResults>(Result) };
 	}
 
-	RETURN_META_VALUE(MRES_IGNORED, k_EGCResultOK);
+	return { KHook::Action::Ignore, k_EGCResultOK };
 }
 
-bool SteamWorksGCHooks::IsMessageAvailable(uint32_t *pcubMsgSize)
+KHook::Return<bool> SteamWorksGCHooks::IsMessageAvailable(ISteamGameCoordinator* pGC, uint32_t *pcubMsgSize)
 {
 	if (this->pGCMsgAvail->GetFunctionCount() == 0)
 	{
-		RETURN_META_VALUE(MRES_IGNORED, false);
+		return { KHook::Action::Ignore, false };
 	}
 
-	bool res = META_RESULT_ORIG_RET(bool);
+	bool res = *(bool*)KHook::GetCurrentValuePtr();
 	if (!res)
 	{
-		RETURN_META_VALUE(MRES_IGNORED, false);
+		return { KHook::Action::Ignore, false };
 	}
 
 	uint32_t shill;
 	if (!pcubMsgSize)
 	{
 		shill = 0;
-		SH_CALL(GetSteamGCPointer(), &ISteamGameCoordinator::IsMessageAvailable)(&shill);
+		m_IsMessageAvailable.CallOriginal(pGC, &shill);
 		pcubMsgSize = &shill;
 	}
 
 	this->pGCMsgAvail->PushCell(*pcubMsgSize);
 	this->pGCMsgAvail->Execute(NULL);
-	RETURN_META_VALUE(MRES_IGNORED, true);
+	return { KHook::Action::Ignore, true };
 }
 
-EGCResults SteamWorksGCHooks::RetrieveMessage(uint32 *punMsgType, void *pubDest, uint32 cubDest, uint32 *pcubMsgSize)
+KHook::Return<EGCResults> SteamWorksGCHooks::RetrieveMessage(ISteamGameCoordinator* pGC, uint32 *punMsgType, void *pubDest, uint32 cubDest, uint32 *pcubMsgSize)
 {
 	if (this->pGCRetMsg->GetFunctionCount() == 0)
 	{
-		RETURN_META_VALUE(MRES_IGNORED, k_EGCResultOK);
+		return { KHook::Action::Ignore, k_EGCResultOK };
 	}
 
 	/* Don't trust a bitch, except for 2GD. https://www.youtube.com/watch?v=MgePh_YJgrc */
 	cell_t Result = k_EGCResultOK;
-	EGCResults res = SH_CALL(GetSteamGCPointer(), &ISteamGameCoordinator::RetrieveMessage)(punMsgType, pubDest, cubDest, pcubMsgSize);
+	EGCResults res = m_RetrieveMessage.CallOriginal(pGC, punMsgType, pubDest, cubDest, pcubMsgSize);
 	if (punMsgType)
 		this->pGCRetMsg->PushCell(*punMsgType);
 	else
@@ -149,10 +145,10 @@ EGCResults SteamWorksGCHooks::RetrieveMessage(uint32 *punMsgType, void *pubDest,
 			Result = k_EGCResultOK;
 		}
 
-		RETURN_META_VALUE(MRES_SUPERCEDE, static_cast<EGCResults>(Result));
+		return { KHook::Action::Supersede, static_cast<EGCResults>(Result) };
 	}
 
-	RETURN_META_VALUE(MRES_SUPERCEDE, res);
+	return { KHook::Action::Supersede, res };
 }
 
 void SteamWorksGCHooks::AddHooks(ISteamGameCoordinator *pGC)
@@ -163,9 +159,9 @@ void SteamWorksGCHooks::AddHooks(ISteamGameCoordinator *pGC)
 	}
 
 	this->uHooked = eHooked;
-	SH_ADD_HOOK(ISteamGameCoordinator, SendMessage, pGC, SH_MEMBER(this, &SteamWorksGCHooks::SendMessage), false);
-	SH_ADD_HOOK(ISteamGameCoordinator, IsMessageAvailable, pGC, SH_MEMBER(this, &SteamWorksGCHooks::IsMessageAvailable), true);
-	SH_ADD_HOOK(ISteamGameCoordinator, RetrieveMessage, pGC, SH_MEMBER(this, &SteamWorksGCHooks::RetrieveMessage), false);
+	m_SendMessage.Add(pGC);
+	m_IsMessageAvailable.Add(pGC);
+	m_RetrieveMessage.Add(pGC);
 }
 
 void SteamWorksGCHooks::RemoveHooks(ISteamGameCoordinator *pGC, bool destroyed)
@@ -175,9 +171,9 @@ void SteamWorksGCHooks::RemoveHooks(ISteamGameCoordinator *pGC, bool destroyed)
 		return;
 	}
 
-	SH_REMOVE_HOOK(ISteamGameCoordinator, SendMessage, pGC, SH_MEMBER(this, &SteamWorksGCHooks::SendMessage), false);
-	SH_REMOVE_HOOK(ISteamGameCoordinator, IsMessageAvailable, pGC, SH_MEMBER(this, &SteamWorksGCHooks::IsMessageAvailable), true);
-	SH_REMOVE_HOOK(ISteamGameCoordinator, RetrieveMessage, pGC, SH_MEMBER(this, &SteamWorksGCHooks::RetrieveMessage), false);
+	m_SendMessage.Remove(pGC);
+	m_IsMessageAvailable.Remove(pGC);
+	m_RetrieveMessage.Remove(pGC);
 
 	if (destroyed)
 	{
