@@ -285,7 +285,7 @@ class SteamWorksConfig(object):
     compiler.includes += [
       os.path.join(context.currentSourcePath),
       os.path.join(context.currentSourcePath, 'sdk'),
-      os.path.join(context.currentSourcePath, 'CDetour'),
+      os.path.join(self.sm_root, 'public', 'CDetour'), os.path.join(self.sm_root, 'public', 'safetyhook', 'include'), os.path.join(self.sm_root, 'public', 'safetyhook', 'zydis'),
 
       os.path.join(self.sm_root, 'public'),
       os.path.join(self.sm_root, 'public', 'extensions'),

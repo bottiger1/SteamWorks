@@ -17,10 +17,21 @@ project.sources += [
   'swgchooks.cpp',
   'sdk/smsdk_ext.cpp',
 
-  'CDetour/Zydis.c',
-  'CDetour/safetyhook.cpp',
-  'CDetour/detours.cpp',
 ]
+
+# CDetour and SafetyHook come from SourceMod's public/ tree
+sm_public = os.path.join(SteamWorks.sm_root, 'public')
+project.sources += [os.path.join(sm_public, 'CDetour', 'detours.cpp')]
+project.sources += [os.path.join(sm_public, 'safetyhook', 'src', f) for f in [
+  'allocator.cpp',
+  'easy.cpp',
+  'inline_hook.cpp',
+  'mid_hook.cpp',
+  'os.linux.cpp',
+  'utility.cpp',
+  'vmt_hook.cpp',
+]]
+project.sources += [os.path.join(sm_public, 'safetyhook', 'zydis', 'Zydis.c')]
 
 for sdk_name in SteamWorks.sdks:
   sdk = SteamWorks.sdks[sdk_name]

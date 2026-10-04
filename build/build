@@ -1,6 +1,5 @@
 #!/bin/bash
 
-ln -sfn ../../../sdk/CDetour ../Extension/CDetour
 
 python3 ../configure.py -s tf2 \
         --hl2sdk-root `realpath ../../../sdk` \
