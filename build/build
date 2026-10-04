@@ -7,7 +7,7 @@ python3 ../configure.py -s tf2 \
         --mms-path ../../../sdk/mmsource \
         --sm-path ../../../sdk/sourcemod \
 	--steamworks-path ../../../sdk/steamworks \
-        --targets x86,x86_64
+        --targets x86_64
 ambuild
 
 # Stage binaries into ~/tf2dev/extensions/{,x64}
